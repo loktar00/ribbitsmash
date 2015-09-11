@@ -20,9 +20,8 @@ Renderer.prototype = {
 
         while(id--){
             var curItem = this.list[id];
-            if(curItem.visible){
-                curItem.render(ctx);
-            }
+            curItem.update();
+            curItem.render();
         }
     },
     add: function(item) {
@@ -50,38 +49,35 @@ var Sprite = function(options) {
 }
 
 Sprite.prototype = {
-    update: function() {
-
-    },
     render: function() {
         var color = this.color;
         ctx.save();
-        ctx.fillStyle = "rgba(" + color.r + "," + color.g + "," + color.b + "," + this.alpha + ")";
-        ctx.fillRect(this.x - this.org.x, this.y - this.org.y, this.width, this.height);
+        ctx.fillStyle = "rgba(" + color.r + "," + color.g + "," + color.b + "," + color.a + ")";
+        ctx.fillRect(this.x, this.y, this.width, this.height);
         ctx.restore();
     }
 }
 
 function Frog(options) {
-    options = options || {};
-    options.width = 32;
-    options.height = 32;
-    options.color = {r : 0, g : 255, b : 0, a : 1};
-    options.shape = true;
     Sprite.call(this, options);
+    this.x = options.x || 0;
+    this.y = options.y || 10;
+    this.width = 16;
+    this.height = 16;
+    this.color = {r : 0, g : 255, b : 0, a : 1};
+    this.shape = true;
 }
 
 Frog.prototype = new Sprite();
-this.Frog = Frog;
 
 Frog.prototype.update = function(dt) {
-    Sprite.prototype.update();
     this.x ++;
     if(this.x > WIDTH) {
-        this.x = 0;
+        this.x = -this.width;
     }
 }
 
+var RENDERER = new Renderer();
 
 var MenuScreen = function() {
 
@@ -96,10 +92,10 @@ var lostScreen = function() {
 }
 
 var GameScreen = function() {
-    RENDERER.add(new Frog());
+    for(var i = 0; i < 255; i ++) {
+        RENDERER.add(new Frog({x : Math.random() * WIDTH, y : Math.random() * HEIGHT}));
+    }
 }
-
-var RENDERER = new Renderer();
 
 function Game() {
     this.gameScreen = new GameScreen();
@@ -109,7 +105,7 @@ function Game() {
 Game.prototype = {
     update: function() {
         RENDERER.render();
-        requestAnimationFrame(function(){this.update}.bind(this));
+        requestAnimationFrame(function(){this.update()}.bind(this));
     }
 }
 
