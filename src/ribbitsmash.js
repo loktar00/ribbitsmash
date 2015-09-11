@@ -19,9 +19,8 @@ Renderer.prototype = {
         this.list.sort(function(a,b){return b.y-a.y});
 
         while(id--){
-            var curItem = this.list[id];
-            curItem.update();
-            curItem.render();
+            this.list[id].update();
+            this.list[id].render();
         }
     },
     add: function(item) {
@@ -63,15 +62,22 @@ function Frog(options) {
     this.x = options.x || 0;
     this.y = options.y || 10;
     this.width = 16;
-    this.height = 16;
+    this.height = 14;
     this.color = {r : 0, g : 255, b : 0, a : 1};
     this.shape = true;
+    this.speed = (Math.random() * 0.5) + 0.5;
+    this.jump = 0;
+    this.jumpSpeed = (Math.random() * 0.08) + 0.04;
 }
 
 Frog.prototype = new Sprite();
 
 Frog.prototype.update = function(dt) {
-    this.x ++;
+    this.jump+= this.jumpSpeed;
+    if( Math.abs(Math.sin(this.jump)) === Math.sin(this.jump)) {
+        this.x += this.speed + Math.sin(this.jump);
+    }
+
     if(this.x > WIDTH) {
         this.x = -this.width;
     }
@@ -92,7 +98,7 @@ var lostScreen = function() {
 }
 
 var GameScreen = function() {
-    for(var i = 0; i < 255; i ++) {
+    for(var i = 0; i < 10; i ++) {
         RENDERER.add(new Frog({x : Math.random() * WIDTH, y : Math.random() * HEIGHT}));
     }
 }
