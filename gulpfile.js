@@ -1,10 +1,11 @@
 var gulp = require('gulp'),
     uglify = require('gulp-uglify'),
-    connect = require('gulp-connect');
+    connect = require('gulp-connect'),
+    gutil = require('gulp-util');
 
 gulp.task('javascript', function(){
     return gulp.src('./src/**/*.js')
-    .pipe(uglify())
+    .pipe(uglify().on('error', gutil.log))
     .pipe(gulp.dest('./dist/'))
     .pipe(connect.reload());
 });
@@ -23,9 +24,9 @@ gulp.task('connect', function(){
     });
 });
 
-gulp.task('watch', ['html', 'javascript'], function() {
+gulp.task('watch', ['markup', 'javascript'], function() {
     gulp.watch(['./src/**/*.js'], ['javascript']);
     gulp.watch(['./src/**/*.html'], ['markup']);
 });
 
-gulp.task('default', ['connect', 'javascript', 'markup']);
+gulp.task('default', ['connect', 'javascript', 'markup', 'watch']);
