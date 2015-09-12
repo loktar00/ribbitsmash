@@ -22,6 +22,15 @@ function createTempCanvas(width, height) {
     return { canvas : tempCanvas, ctx : tCtx };
 }
 
+function getDistance(a, b){
+    var ax = a.x + a.width / 2,
+        ay = a.y + a.height / 2,
+        bx = b.x + b.width / 2,
+        by = b.y + b.height / 2;
+
+    return Math.sqrt((bx - ax) *(bx - ax) + (by - ay) * (by - ay));
+}
+
 /**  Renderer **/
 var Renderer = function() {
     this.list = [];
@@ -268,6 +277,7 @@ function Frog(options) {
 
     this.width = 16;
     this.height = 14;
+    this.radius = 10;
 
     this.color = {r : 0, g : 255, b : 0, a : 1};
     this.shape = true;
@@ -331,17 +341,26 @@ function Car(options) {
     options = options || {};
     Sprite.call(this, options);
 
-    this.width = 32;
-    this.height = 64;
+    this.width = 60;
+    this.height = 40;
+    this.radius = 30;
 
-    this.y = options.y || HEIGHT + this.height;
+    this.y = options.y || HEIGHT / 2;
     this.x = options.x || 50;
     this.z = 2;
+
+    this.vel = { x : 0, y : 0 };
+    this.acc = { x : 0, y : 0};
+
+    this.angle = 180;
+    this.turnSpeed = 1.5;
+    this.thrust = 0.05;
+    this.isThrusting = false;
+    this.maxAcc = 3;
 
     this.colId = 1;
     this.color = {r : 255, g : 255, b : 255, a : 1};
     this.shape = true;
-    this.speed = (Math.random() * 2) + 0.5;
 }
 
 Car.prototype = new Sprite();
@@ -350,11 +369,97 @@ Car.prototype.hit = function() {
     // Do stuff when a car hits a frog.
 };
 
-Car.prototype.update = function(dt) {
-    this.y -= this.speed;
-    if(this.y + this.height < 0) {
-        this.y = HEIGHT + this.height;
+Car.prototype.turn = function(dir){
+    this.angle += this.turnSpeed * dir;
+};
+
+Car.prototype.update = function() {
+    var radians = this.angle * Math.PI / 180;
+
+    if(this.y < 0) {
+        this.y = 0;
+        this.vel.y = -this.vel.y * 0.25;
     }
+
+    if(this.y + this.height > HEIGHT) {
+        this.y = HEIGHT - this.height;
+        this.vel.y = -this.vel.y * 0.25;
+    }
+
+    if(this.x < 0) {
+        this.x = 0;
+        this.vel.x = -this.vel.x * 0.25;
+    }
+
+    if(this.x + this.width > WIDTH) {
+        this.x = WIDTH - this.width;
+        this.vel.x = -this.vel.x * 0.25;
+    }
+
+    // Left
+    if(RibbitSmash.getKey(65) || RibbitSmash.getKey(37)) {
+        this.turn(-1);
+        this.vel.x *= 0.98;
+        this.vel.y *= 0.98;
+    }
+
+    // right
+    if(RibbitSmash.getKey(68) || RibbitSmash.getKey(39)) {
+        this.turn(1);
+        this.vel.x *= 0.98;
+        this.vel.y *= 0.98;
+    }
+
+    this.isThrusting = false;
+
+    if(RibbitSmash.getKey(87) || RibbitSmash.getKey(38) || RibbitSmash.getKey(83) || RibbitSmash.getKey(40)) {
+        this.isThrusting = true;
+
+        // up
+        if(RibbitSmash.getKey(83) || RibbitSmash.getKey(40)) {
+                this.acc.x = Math.cos(radians) * this.thrust;
+                this.acc.y = Math.sin(radians) * this.thrust;
+        }
+
+        // down
+        if(RibbitSmash.getKey(87) || RibbitSmash.getKey(38)) {
+                this.acc.x = Math.cos(radians) * -this.thrust;
+                this.acc.y = Math.sin(radians) * -this.thrust;
+        }
+    }
+
+    // Friction
+    if(!this.isThrusting) {
+        this.acc.x = 0;
+        this.acc.y = 0;
+        this.vel.x *= 0.97;
+        this.vel.y *= 0.97;
+    }
+
+    this.vel.x += this.acc.x;
+    this.vel.y += this.acc.y;
+
+    this.x += this.vel.x;
+    this.y += this.vel.y;
+}
+
+Car.prototype.render = function() {
+    var color = this.color;
+    ctx.save();
+        ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+
+        ctx.rotate(this.angle * Math.PI / 180);
+
+        ctx.fillStyle = "rgba(" + color.r + "," + color.g + "," + color.b + "," + color.a + ")";
+        ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+        ctx.fillStyle = 'rgb(30,30,30)';
+
+        ctx.fillRect(this.height - 30, -28, 20, 8);
+        ctx.fillRect(this.height - 30, 20, 20, 8);
+
+        ctx.fillRect(-this.height + 10, -28, 20, 8);
+        ctx.fillRect(-this.height + 10, 20, 20, 8);
+    ctx.restore();
 }
 
 /** GAME SETUP **/
@@ -363,6 +468,16 @@ function Game() {
     this.states = {};
     this.curState = {};
     this.renderer = new Renderer();
+
+    this.keys = [];
+    document.addEventListener('keydown', function(event){ 
+        this.keyDown(event);
+    }.bind(this), false);
+
+    document.addEventListener('keyup', function(event){
+        this.keyUp(event);
+    }.bind(this), false);
+
 
     this.addState('init');
     this.update();
@@ -395,6 +510,15 @@ Game.prototype = {
         this.states[state]  = {entities: []};
         this.switchState(state);
     },
+    getKey: function(key) {
+        return this.keys[key];
+    },
+    keyDown: function(event) {
+       this.keys[event.keyCode] = true;
+    },
+    keyUp: function(event) {
+        this.keys[event.keyCode] = false;
+    },
     update: function() {
         var entities = this.curState.entities,
             entLen = entities.length;
@@ -419,10 +543,9 @@ Game.prototype = {
                     continue;
                 }
 
-                if (curEnt.x < checkEnt.x + checkEnt.width &&
-                    curEnt.x + curEnt.width > checkEnt.x &&
-                    curEnt.y < checkEnt.y + checkEnt.height &&
-                    curEnt.height + curEnt.y > checkEnt.y) {
+                var checkRadius = curEnt.radius + checkEnt.radius;
+
+                if(getDistance(curEnt, checkEnt) < checkRadius){
                         curEnt.hit();
                         checkEnt.hit();
                 }
@@ -454,10 +577,6 @@ function menuState() {
 
 }
 
-function winState() {
-
-}
-
 function lostState() {
 
 }
@@ -466,7 +585,7 @@ function gameState () {
     RibbitSmash.addState('Game');
 
     RibbitSmash.add(gameMap);
-    for(var i = 0; i < 500; i ++) {
+    for(var i = 0; i < 100; i ++) {
         RibbitSmash.add(new Frog({x : Math.random() * WIDTH, y : Math.random() * HEIGHT}));
     }
 
