@@ -1,11 +1,14 @@
 var gulp = require('gulp'),
     uglify = require('gulp-uglify'),
     connect = require('gulp-connect'),
+    sourcemaps = require('gulp-sourcemaps'),
     gutil = require('gulp-util');
 
 gulp.task('javascript', function(){
     return gulp.src('./src/**/*.js')
-    .pipe(uglify().on('error', gutil.log))
+    .pipe(sourcemaps.init())
+        .pipe(uglify().on('error', gutil.log))
+    .pipe(sourcemaps.write('./maps'))
     .pipe(gulp.dest('./dist/'))
     .pipe(connect.reload());
 });
