@@ -16,7 +16,20 @@ Renderer.prototype = {
         var id = this.list.length;
 
         ctx.clearRect(0, 0, WIDTH, HEIGHT);
-        this.list.sort(function(a,b){return b.y-a.y});
+
+        // Sort the display order, backgrounds are always on the bottom
+        this.list.sort(function(a,b){
+            if(a.bg && b.bg){
+                return b.bgIndex - a.bgIndex;
+            }else if(a.bg){
+                return 1;
+            }else if(b.bg){
+                return -1;
+            }else if(a.z && b.z){
+                return b.z - a.z;
+            }
+            return 0;
+        });
 
         while(id--){
             this.list[id].render();
@@ -44,6 +57,7 @@ var Sprite = function(options) {
     this.height = options.height || 0;
     this.x = options.x || 0;
     this.y = options.y || 0;
+    this.z = options.z || 0;
     this.color = options.color || {r : 0, g : 0, b : 0, a : 1};
     this.shape = options.shape || false;
     this.img = options.img;
@@ -52,6 +66,7 @@ var Sprite = function(options) {
 }
 
 Sprite.prototype = {
+    update: function() {},
     render: function() {
         var color = this.color;
         ctx.save();
@@ -61,6 +76,40 @@ Sprite.prototype = {
     }
 }
 
+/** Map**/
+function Map(options) {
+    Sprite.call(this, options);
+
+    this.bg = true;
+    this.bgIndex = 1;
+
+    this.x = 0;
+    this.y = 0;
+
+    this.width = WIDTH;
+    this.height = HEIGHT;
+
+    this.shape = true;
+}
+
+Map.prototype = new Sprite();
+
+Map.prototype.render = function() {
+    ctx.save();
+        // main road.
+        ctx.fillStyle = "rgb(100,100,100)";
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        // water
+        ctx.fillStyle  = "#009dd1";
+        ctx.fillRect(this.width - 100, 0, 100, this.height);
+
+        // grass
+        ctx.fillStyle  = "#00d12c";
+        ctx.fillRect(this.width - 120, 0, 20, this.height);
+    ctx.restore();
+};
+
 /** FROG **/
 
 function Frog(options) {
@@ -68,6 +117,7 @@ function Frog(options) {
 
     this.x = options.x || 0;
     this.y = options.y || 10;
+    this.z = 1;
 
     this.width = 16;
     this.height = 14;
@@ -109,6 +159,7 @@ function Car(options) {
 
     this.y = options.y || HEIGHT + this.height;
     this.x = options.x || 50;
+    this.z = 2;
 
     this.colId = 1;
     this.color = {r : 255, g : 255, b : 255, a : 1};
@@ -235,6 +286,7 @@ function lostState() {
 function gameState () {
     RibbitSmash.addState('Game');
 
+    RibbitSmash.add(new Map());
     for(var i = 0; i < 10; i ++) {
         RibbitSmash.add(new Frog({x : Math.random() * WIDTH, y : Math.random() * HEIGHT}));
     }
