@@ -7,6 +7,11 @@ var canvas = document.querySelector('canvas'),
 canvas.width = WIDTH;
 canvas.height = HEIGHT;
 
+/* random util */
+function randomRange(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 var Renderer = function() {
     this.list = [];
 }
@@ -43,7 +48,6 @@ Renderer.prototype = {
             itemIdx = list.indexOf(item);
 
         if(itemIdx !== -1){
-            console.log('remove');
             list.splice(list.indexOf(item), 1);
         }
     }
@@ -75,6 +79,135 @@ Sprite.prototype = {
         ctx.restore();
     }
 }
+
+
+/** Emitter **/
+var Emitter = function(options) {
+    this.live = true;
+    // Timing specifics
+    this.lastUpdate = Date.now();
+    this.startTime =  Date.now();
+
+    options = options || {};
+    this.color = options.color || {r: 0, g: 0, b: 0, a: 0};
+    this.width = options.width || WIDTH;
+    this.height = options.height || WIDTH;
+    this.x = options.x || 0;
+    this.y = options.y || 0;
+    this.z = options.z || 0;
+
+    this.rate = options.rate || 1;
+    this.duration = options.duration || 100;
+    this.thrustRange = options.thrustRange || {max: 2};
+    this.angleRange = options.angleRange || {max: 360};
+    this.particles = [];
+};
+
+Emitter.prototype = {
+    kill: function() {
+        var parts = this.particles.length;
+        
+        while(parts--) {
+            this.particles[parts].live = false;
+        }
+
+        this.particles = [];
+    },
+    update: function() {
+        this.lastUpdate = Date.now();
+        if (this.lastUpdate >= 1000 / this.rate) {
+            if (this.lastUpdate - this.startTime < this.duration) {
+                rate = this.rate;
+
+                while(rate--) {
+                    var thrust = randomRange(0 , this.thrustRange.max),
+                        angle = randomRange(0 , this.angleRange.max),
+                        curParticle = new Particle({
+                            x: this.x,
+                            y: this.y,
+                            thrust: thrust,
+                            angle: angle,
+                            color: this.color
+                        });
+
+                    this.particles.push(curParticle);
+
+                    // this is terrible.
+                    RibbitSmash.add(curParticle);
+                }
+            } else {
+                this.kill();
+            }
+        }
+    }
+};
+
+/** Particle **/
+var Particle = function(options) {
+    Sprite.call(this, options);
+
+    this.startLife = Date.now();
+    this.curStep = 0;
+    this.vel = {x : 0, y : 0};
+
+    options = options || {};
+
+    this.lifeTime = (options.lifeTime !== undefined) ? options.lifeTime : 100;
+
+    this.size = options.size || 8;
+    this.width = this.height = this.size;
+
+    this.thrust = options.thrust || 0;
+    this.gravity = options.gravity || 0;
+
+    this.angle = options.angle || 0;
+
+    this.endLife = this.startLife + this.lifeTime;
+};
+
+Particle.prototype = new Sprite();
+
+Particle.prototype.update = function() {
+    this.curStep =  this.endLife - Date.now();
+
+    this.vel.x = Math.cos(this.angle *  Math.PI / 180) * this.thrust;
+    this.vel.y = (Math.sin(this.angle *  Math.PI / 180) * this.thrust) + this.gravity * (this.lifeTime - this.curStep);
+
+    this.x += this.vel.x;
+    this.y += this.vel.y;
+
+    if(this.y < 0 || this.y > HEIGHT ||
+        this.x < 0 || this.x > WIDTH
+        || Date.now() > this.endLife) {
+        this.live = false;
+    }
+
+    if(this.alignToAngle){
+        this.drawAngle = this.angle;
+    }
+};
+
+Particle.prototype.render = function(){
+    ctx.save();
+
+    var scale = this.scale || {x:0,y:0},
+        x = this.x,
+        y = this.y,
+        width = this.width,
+        height = this.height,
+        rotAngle = this.drawAngle * Math.PI / 180;
+
+        ctx.fillStyle = "rgba(" + this.color.r + "," + this.color.g + "," + this.color.b + "," + this.color.a + ")";
+
+        if(this.drawAngle !== 0){
+            ctx.translate(x, y);
+            ctx.rotate(rotAngle);
+            ctx.fillRect(0, 0, width - scale.x, height - scale.y);
+        }else{
+            ctx.fillRect(x, y, width - scale.x, height - scale.y);
+        }
+    ctx.restore();
+};
 
 /** Map**/
 function Map(options) {
@@ -135,6 +268,11 @@ Frog.prototype = new Sprite();
 
 Frog.prototype.hit = function() {
     this.live = false;
+    RibbitSmash.add(new Emitter({
+        color: {r: 255, g: 0, b: 0, a: 1},
+        x: this.x,
+        y: this.y
+    }), true)
 };
 
 Frog.prototype.update = function(dt) {
@@ -209,9 +347,11 @@ function Game() {
 }
 
 Game.prototype = {
-    add: function(ent) {
+    add: function(ent, updateOnly) {
         this.curState.entities.push(ent);
-        this.renderer.add(ent);
+        if (!updateOnly) {
+            this.renderer.add(ent);
+        }
     },
     remove: function(ent) {
         var entities = this.curState.entities,
