@@ -138,7 +138,7 @@ Frog.prototype.hit = function() {
 };
 
 Frog.prototype.update = function(dt) {
-    this.jump+= this.jumpSpeed;
+    this.jump += this.jumpSpeed;
     if( Math.abs(Math.sin(this.jump)) === Math.sin(this.jump)) {
         this.x += this.speed + Math.sin(this.jump);
     }
@@ -146,6 +146,23 @@ Frog.prototype.update = function(dt) {
     if(this.x > WIDTH) {
         this.x = -this.width;
     }
+}
+
+Frog.prototype.render = function(){
+    // add shadows while jumping
+    var shadowY = this.y,
+        shadowX = this.x;
+
+    if( Math.abs(Math.sin(this.jump)) === Math.sin(this.jump)) {
+        shadowY = (this.y + (Math.sin(this.jump)*5));
+        shadowX = (this.x - (Math.sin(this.jump)*5));
+    }
+    ctx.save();
+    ctx.fillStyle = "rgba(50,50,50,0.3)";
+    ctx.fillRect(shadowX, shadowY, this.width, this.height);
+    ctx.restore();
+
+    Sprite.prototype.render.call(this);
 }
 
 /** CAR **/
