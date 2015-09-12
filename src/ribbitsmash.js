@@ -141,10 +141,11 @@ Emitter.prototype = {
                         curParticle = new Particle({
                             x: this.x,
                             y: this.y,
-                            z: 100, 
+                            z: 1, 
                             thrust: thrust,
                             angle: angle,
-                            color: this.color
+                            color: this.color,
+                            size: randomRange(2, 6)
                         });
 
                     this.particles.push(curParticle);
@@ -226,6 +227,7 @@ Particle.prototype.render = function(static){
 };
 
 /** Map**/
+
 function Map(options) {
     Sprite.call(this, options);
 
@@ -248,11 +250,11 @@ function Map(options) {
 
     // water
     this.ctx.fillStyle  = "#009dd1";
-    this.ctx.fillRect(this.width - 100, 0, 100, this.height);
+    this.ctx.fillRect(this.width - 50, 0, 50, this.height);
 
     // grass
     this.ctx.fillStyle  = "#00d12c";
-    this.ctx.fillRect(this.width - 120, 0, 20, this.height);
+    this.ctx.fillRect(this.width - 70, 0, 20, this.height);
 }
 
 Map.prototype = new Sprite();
@@ -275,9 +277,9 @@ function Frog(options) {
     this.y = options.y || 10;
     this.z = 1;
 
-    this.width = 16;
-    this.height = 14;
-    this.radius = 10;
+    this.width = 20;
+    this.height = 16;
+    this.radius = 14;
 
     this.color = {r : 0, g : 255, b : 0, a : 1};
     this.shape = true;
@@ -341,6 +343,7 @@ function Car(options) {
     options = options || {};
     Sprite.call(this, options);
 
+    this.skidCanvas = createTempCanvas(WIDTH, HEIGHT);
     this.width = 60;
     this.height = 40;
     this.radius = 30;
@@ -373,6 +376,22 @@ Car.prototype.turn = function(dir){
     this.angle += this.turnSpeed * dir;
 };
 
+Car.prototype.drawSkids = function() {
+    this.skidCanvas.ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    this.skidCanvas.ctx.save();
+        this.skidCanvas.ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+
+        this.skidCanvas.ctx.rotate(this.angle * Math.PI / 180);
+
+        this.skidCanvas.ctx.fillStyle = 'rgba(10,10,10, 0.2)';
+
+        this.skidCanvas.ctx.fillRect(this.height - 30, -28, 10, 8);
+        this.skidCanvas.ctx.fillRect(this.height - 30, 20, 10, 8);
+
+    this.skidCanvas.ctx.restore();
+    gameMap.battleDamage(this.skidCanvas.canvas, 0, 0 );
+}
+
 Car.prototype.update = function() {
     var radians = this.angle * Math.PI / 180;
 
@@ -391,23 +410,10 @@ Car.prototype.update = function() {
         this.vel.x = -this.vel.x * 0.25;
     }
 
-    if(this.x + this.width > WIDTH) {
-        this.x = WIDTH - this.width;
+    // magic number.., 50 away from the edge is the water.
+    if(this.x + this.width > WIDTH - 50) {
+        this.x = WIDTH - this.width - 50;
         this.vel.x = -this.vel.x * 0.25;
-    }
-
-    // Left
-    if(RibbitSmash.getKey(65) || RibbitSmash.getKey(37)) {
-        this.turn(-1);
-        this.vel.x *= 0.98;
-        this.vel.y *= 0.98;
-    }
-
-    // right
-    if(RibbitSmash.getKey(68) || RibbitSmash.getKey(39)) {
-        this.turn(1);
-        this.vel.x *= 0.98;
-        this.vel.y *= 0.98;
     }
 
     this.isThrusting = false;
@@ -425,6 +431,26 @@ Car.prototype.update = function() {
         if(RibbitSmash.getKey(87) || RibbitSmash.getKey(38)) {
                 this.acc.x = Math.cos(radians) * -this.thrust;
                 this.acc.y = Math.sin(radians) * -this.thrust;
+        }
+    }
+
+    // Left
+    if(RibbitSmash.getKey(65) || RibbitSmash.getKey(37)) {
+        this.turn(-1);
+        this.vel.x *= 0.98;
+        this.vel.y *= 0.98;
+        if(this.isThrusting){
+            this.drawSkids();
+        }
+    }
+
+    // right
+    if(RibbitSmash.getKey(68) || RibbitSmash.getKey(39)) {
+        this.turn(1);
+        this.vel.x *= 0.98;
+        this.vel.y *= 0.98;
+        if(this.isThrusting){
+            this.drawSkids();
         }
     }
 
@@ -453,6 +479,8 @@ Car.prototype.render = function() {
         ctx.fillStyle = "rgba(" + color.r + "," + color.g + "," + color.b + "," + color.a + ")";
         ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
         ctx.fillStyle = 'rgb(30,30,30)';
+
+        ctx.fillRect(-this.height + 20, -10, 15, 20);
 
         ctx.fillRect(this.height - 30, -28, 20, 8);
         ctx.fillRect(this.height - 30, 20, 20, 8);
@@ -586,7 +614,7 @@ function gameState () {
 
     RibbitSmash.add(gameMap);
     for(var i = 0; i < 100; i ++) {
-        RibbitSmash.add(new Frog({x : Math.random() * WIDTH, y : Math.random() * HEIGHT}));
+        RibbitSmash.add(new Frog({x : (Math.random() * -WIDTH) -300, y : randomRange(20, HEIGHT - 30)}));
     }
 
     RibbitSmash.add(new Car());
