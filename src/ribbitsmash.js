@@ -2,7 +2,6 @@ var canvas = document.querySelector('canvas'),
     ctx = canvas.getContext('2d'),
     WIDTH = 800,
     HEIGHT = 600;
-    canvas.width
 
 canvas.width = WIDTH;
 canvas.height = HEIGHT;
@@ -12,6 +11,18 @@ function randomRange(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+/* util for templ canvas */
+function createTempCanvas(width, height) {
+    var tempCanvas = document.createElement('canvas'),
+        tCtx = tempCanvas.getContext('2d');
+
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+
+    return { canvas : tempCanvas, ctx : tCtx };
+}
+
+/**  Renderer **/
 var Renderer = function() {
     this.list = [];
 }
@@ -82,6 +93,7 @@ Sprite.prototype = {
 
 
 /** Emitter **/
+
 var Emitter = function(options) {
     this.live = true;
     // Timing specifics
@@ -97,8 +109,8 @@ var Emitter = function(options) {
     this.z = options.z || 0;
 
     this.rate = options.rate || 1;
-    this.duration = options.duration || 100;
-    this.thrustRange = options.thrustRange || {max: 2};
+    this.duration = options.duration || 70;
+    this.thrustRange = options.thrustRange || {min: 0, max: 2};
     this.angleRange = options.angleRange || {max: 360};
     this.particles = [];
 };
@@ -106,11 +118,6 @@ var Emitter = function(options) {
 Emitter.prototype = {
     kill: function() {
         var parts = this.particles.length;
-        
-        while(parts--) {
-            this.particles[parts].live = false;
-        }
-
         this.particles = [];
     },
     update: function() {
@@ -120,11 +127,12 @@ Emitter.prototype = {
                 rate = this.rate;
 
                 while(rate--) {
-                    var thrust = randomRange(0 , this.thrustRange.max),
-                        angle = randomRange(0 , this.angleRange.max),
+                    var thrust = randomRange(this.thrustRange.min, this.thrustRange.max),
+                        angle = randomRange(0, this.angleRange.max),
                         curParticle = new Particle({
                             x: this.x,
                             y: this.y,
+                            z: 100, 
                             thrust: thrust,
                             angle: angle,
                             color: this.color
@@ -154,7 +162,7 @@ var Particle = function(options) {
 
     this.lifeTime = (options.lifeTime !== undefined) ? options.lifeTime : 100;
 
-    this.size = options.size || 8;
+    this.size = options.size || 6;
     this.width = this.height = this.size;
 
     this.thrust = options.thrust || 0;
@@ -180,33 +188,32 @@ Particle.prototype.update = function() {
         this.x < 0 || this.x > WIDTH
         || Date.now() > this.endLife) {
         this.live = false;
-    }
 
-    if(this.alignToAngle){
-        this.drawAngle = this.angle;
+        //  last render to the world for left behind blood.
+        this.render(true);
     }
 };
 
-Particle.prototype.render = function(){
-    ctx.save();
-
-    var scale = this.scale || {x:0,y:0},
+Particle.prototype.render = function(static){
+    var tempCanvas,
+        particleCtx = ctx,
         x = this.x,
-        y = this.y,
-        width = this.width,
-        height = this.height,
-        rotAngle = this.drawAngle * Math.PI / 180;
+        y = this.y;
 
-        ctx.fillStyle = "rgba(" + this.color.r + "," + this.color.g + "," + this.color.b + "," + this.color.a + ")";
+    if(static) {
+        tempCanvas = createTempCanvas(this.width, this.height);
+        particleCtx = tempCanvas.ctx;
+        x = 0;
+        y = 0;
+    }
 
-        if(this.drawAngle !== 0){
-            ctx.translate(x, y);
-            ctx.rotate(rotAngle);
-            ctx.fillRect(0, 0, width - scale.x, height - scale.y);
-        }else{
-            ctx.fillRect(x, y, width - scale.x, height - scale.y);
-        }
-    ctx.restore();
+    var scale = this.scale || {x:0, y:0};
+    particleCtx.fillStyle = "rgba(" + this.color.r + "," + this.color.g + "," + this.color.b + "," + this.color.a + ")";
+    particleCtx.fillRect(x, y, this.width - scale.x, this.height - scale.y); 
+
+    if(static) {
+        gameMap.battleDamage(tempCanvas.canvas, this.x, this.y);
+    }
 };
 
 /** Map**/
@@ -222,25 +229,32 @@ function Map(options) {
     this.width = WIDTH;
     this.height = HEIGHT;
 
-    this.shape = true;
+    // Create the background 
+    var tempCanvas = createTempCanvas(this.width, this.height);
+    this.canvas = tempCanvas.canvas;
+    this.ctx = tempCanvas.ctx;
+
+    this.ctx.fillStyle = "rgb(100,100,100)";
+    this.ctx.fillRect(this.x, this.y, this.width, this.height);
+
+    // water
+    this.ctx.fillStyle  = "#009dd1";
+    this.ctx.fillRect(this.width - 100, 0, 100, this.height);
+
+    // grass
+    this.ctx.fillStyle  = "#00d12c";
+    this.ctx.fillRect(this.width - 120, 0, 20, this.height);
 }
 
 Map.prototype = new Sprite();
 
+// Add stuff to our canvas image.
+Map.prototype.battleDamage = function(img, x, y) {
+    this.ctx.drawImage(img, x, y);
+}
+
 Map.prototype.render = function() {
-    ctx.save();
-        // main road.
-        ctx.fillStyle = "rgb(100,100,100)";
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-
-        // water
-        ctx.fillStyle  = "#009dd1";
-        ctx.fillRect(this.width - 100, 0, 100, this.height);
-
-        // grass
-        ctx.fillStyle  = "#00d12c";
-        ctx.fillRect(this.width - 120, 0, 20, this.height);
-    ctx.restore();
+    ctx.drawImage(this.canvas, 0, 0, this.width, this.height);
 };
 
 /** FROG **/
@@ -268,8 +282,16 @@ Frog.prototype = new Sprite();
 
 Frog.prototype.hit = function() {
     this.live = false;
+
+    // Create the background 
+    var deathCanvas = createTempCanvas(this.width, this.height);
+
+    deathCanvas.ctx.fillStyle = "rgb(10,120,0)";
+    deathCanvas.ctx.fillRect(0, 0, this.width, this.height);
+    gameMap.battleDamage(deathCanvas.canvas, this.x, this.y);
+
     RibbitSmash.add(new Emitter({
-        color: {r: 255, g: 0, b: 0, a: 1},
+        color: {r: 250, g: 0, b: 0, a: 1},
         x: this.x,
         y: this.y
     }), true)
@@ -443,12 +465,14 @@ function lostState() {
 function gameState () {
     RibbitSmash.addState('Game');
 
-    RibbitSmash.add(new Map());
-    for(var i = 0; i < 10; i ++) {
+    RibbitSmash.add(gameMap);
+    for(var i = 0; i < 500; i ++) {
         RibbitSmash.add(new Frog({x : Math.random() * WIDTH, y : Math.random() * HEIGHT}));
     }
 
     RibbitSmash.add(new Car());
 }
 
+// global gamemap.. yay.
+var gameMap = new Map();
 gameState();
