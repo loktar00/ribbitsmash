@@ -31,48 +31,6 @@ function getDistance(a, b){
     return Math.sqrt((bx - ax) *(bx - ax) + (by - ay) * (by - ay));
 }
 
-/**  Renderer **/
-var Renderer = function() {
-    this.list = [];
-}
-
-Renderer.prototype = {
-    render: function() {
-        var id = this.list.length;
-
-        ctx.clearRect(0, 0, WIDTH, HEIGHT);
-
-        // Sort the display order, backgrounds are always on the bottom
-        this.list.sort(function(a,b){
-            if(a.bg && b.bg){
-                return b.bgIndex - a.bgIndex;
-            }else if(a.bg){
-                return 1;
-            }else if(b.bg){
-                return -1;
-            }else if(a.z && b.z){
-                return b.z - a.z;
-            }
-            return 0;
-        });
-
-        while(id--){
-            this.list[id].render();
-        }
-    },
-    add: function(item) {
-        this.list.push(item);
-    },
-    remove: function(item) {
-        var list = this.list,
-            itemIdx = list.indexOf(item);
-
-        if(itemIdx !== -1){
-            list.splice(list.indexOf(item), 1);
-        }
-    }
-};
-
 /** SPRITE **/
 
 var Sprite = function(options) {
@@ -122,6 +80,7 @@ var Emitter = function(options) {
     this.thrustRange = options.thrustRange || {min: 0, max: 2};
     this.angleRange = options.angleRange || {max: 360};
     this.particles = [];
+    this.updateOnly = true;
 };
 
 Emitter.prototype = {
@@ -495,7 +454,6 @@ Car.prototype.render = function() {
 function Game() {
     this.states = {};
     this.curState = {};
-    this.renderer = new Renderer();
 
     this.keys = [];
     document.addEventListener('keydown', function(event){ 
@@ -514,9 +472,6 @@ function Game() {
 Game.prototype = {
     add: function(ent, updateOnly) {
         this.curState.entities.push(ent);
-        if (!updateOnly) {
-            this.renderer.add(ent);
-        }
     },
     remove: function(ent) {
         var entities = this.curState.entities,
@@ -528,8 +483,6 @@ Game.prototype = {
         }
 
         entities.splice(entity, 1);
-
-        this.renderer.remove(ent);
     },
     switchState: function(stateName) {
         this.curState = this.states[stateName];
@@ -546,6 +499,32 @@ Game.prototype = {
     },
     keyUp: function(event) {
         this.keys[event.keyCode] = false;
+    },
+    render: function() {
+        var entities = this.curState.entities,
+            entLen = entities.length;
+
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+        // Sort the display order, backgrounds are always on the bottom
+        entities.sort(function(a,b){
+            if(a.bg && b.bg){
+                return b.bgIndex - a.bgIndex;
+            }else if(a.bg){
+                return 1;
+            }else if(b.bg){
+                return -1;
+            }else if(a.z && b.z){
+                return b.z - a.z;
+            }
+            return 0;
+        });
+
+        while(entLen--){
+            if(!entities[entLen].updateOnly) {
+                entities[entLen].render();
+            }
+        }
     },
     update: function() {
         var entities = this.curState.entities,
@@ -592,7 +571,7 @@ Game.prototype = {
             }
         }
 
-        this.renderer.render();
+        this.render();
         requestAnimationFrame(function(){this.update()}.bind(this));
     }
 }
@@ -606,14 +585,14 @@ function menuState() {
 }
 
 function lostState() {
-
+    RibbitSmash.addState('Lost');
 }
 
 function gameState () {
     RibbitSmash.addState('Game');
 
     RibbitSmash.add(gameMap);
-    for(var i = 0; i < 100; i ++) {
+    for(var i = 0; i < 10; i++) {
         RibbitSmash.add(new Frog({x : (Math.random() * -WIDTH) -300, y : randomRange(20, HEIGHT - 30)}));
     }
 
@@ -623,3 +602,6 @@ function gameState () {
 // global gamemap.. yay.
 var gameMap = new Map();
 gameState();
+lostState();
+
+setTimeout(function(){RibbitSmash.switchState('Game')}, 2000);
