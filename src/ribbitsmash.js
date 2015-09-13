@@ -214,6 +214,14 @@ function Map(options) {
     // grass
     this.ctx.fillStyle  = "#00d12c";
     this.ctx.fillRect(this.width - 70, 0, 20, this.height);
+
+    // road lines
+    this.ctx.fillStyle = "#d4d4d4";
+    for(var y = 0; y < 5; y++) {
+        for(var x = 1; x < 5; x++) {
+            this.ctx.fillRect(x * 150, 30 + (y * 120), 3, 60);
+        }
+    }
 }
 
 Map.prototype = new Sprite();
@@ -260,6 +268,7 @@ Frog.prototype.hit = function() {
     deathCanvas.ctx.fillStyle = "rgb(10,120,0)";
     deathCanvas.ctx.fillRect(0, 0, this.width, this.height);
     gameMap.battleDamage(deathCanvas.canvas, this.x, this.y);
+    RibbitSmash.shake = randomRange(4, 6);
 
     RibbitSmash.add(new Emitter({
         color: {r: 250, g: 0, b: 0, a: 1},
@@ -308,13 +317,13 @@ function Car(options) {
     this.radius = 30;
 
     this.y = options.y || HEIGHT / 2;
-    this.x = options.x || 50;
+    this.x = options.x || WIDTH - 120;
     this.z = 2;
 
     this.vel = { x : 0, y : 0 };
     this.acc = { x : 0, y : 0};
 
-    this.angle = 180;
+    this.angle = 0;
     this.turnSpeed = 1.5;
     this.thrust = 0.05;
     this.isThrusting = false;
@@ -369,7 +378,7 @@ Car.prototype.update = function() {
         this.vel.x = -this.vel.x * 0.25;
     }
 
-    // magic number.., 50 away from the edge is the water.
+    // magic number.. 50 away from the edge is the water.
     if(this.x + this.width > WIDTH - 50) {
         this.x = WIDTH - this.width - 50;
         this.vel.x = -this.vel.x * 0.25;
@@ -417,8 +426,8 @@ Car.prototype.update = function() {
     if(!this.isThrusting) {
         this.acc.x = 0;
         this.acc.y = 0;
-        this.vel.x *= 0.97;
-        this.vel.y *= 0.97;
+        this.vel.x *= 0.96;
+        this.vel.y *= 0.96;
     }
 
     this.vel.x += this.acc.x;
@@ -435,12 +444,13 @@ Car.prototype.render = function() {
 
         ctx.rotate(this.angle * Math.PI / 180);
 
-        ctx.fillStyle = "rgba(" + color.r + "," + color.g + "," + color.b + "," + color.a + ")";
+        ctx.fillStyle = "#fff";
         ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
-        ctx.fillStyle = 'rgb(30,30,30)';
 
+        ctx.fillStyle = '#9400f7';
         ctx.fillRect(-this.height + 20, -10, 15, 20);
 
+        ctx.fillStyle = '#000';
         ctx.fillRect(this.height - 30, -28, 20, 8);
         ctx.fillRect(this.height - 30, 20, 20, 8);
 
@@ -455,6 +465,10 @@ function Game() {
     this.states = {};
     this.curState = {};
 
+    this.shakeCount = 0;
+    this.shake = 0;
+    this.shakeDec = 1;
+
     this.keys = [];
     document.addEventListener('keydown', function(event){ 
         this.keyDown(event);
@@ -464,6 +478,8 @@ function Game() {
         this.keyUp(event);
     }.bind(this), false);
 
+    this.renderCanvas = createTempCanvas(WIDTH, HEIGHT);
+    document.body.appendChild(this.renderCanvas.canvas);
 
     this.addState('init');
     this.update();
@@ -525,6 +541,20 @@ Game.prototype = {
                 entities[entLen].render();
             }
         }
+
+        // This is the displayed canvas, now we can shake shit up.
+        var shakeX = 0,
+            shakeY = 0;
+
+        if (this.shake > 0){
+            shakeX = (Math.random()-0.5) * this.shake;
+            shakeY = (Math.random()-0.5) * this.shake;
+            this.shake -= 0.1 * this.shakeDec;
+        }
+
+        cX = shakeX + (0.5 + 0) << 0;
+        cY = shakeY + (0.5 + 0) << 0;
+        this.renderCanvas.ctx.drawImage(canvas, 0, 0, WIDTH, HEIGHT, cX, cY, WIDTH, HEIGHT);
     },
     update: function() {
         var entities = this.curState.entities,
@@ -592,7 +622,7 @@ function gameState () {
     RibbitSmash.addState('Game');
 
     RibbitSmash.add(gameMap);
-    for(var i = 0; i < 10; i++) {
+    for(var i = 0; i < 100; i++) {
         RibbitSmash.add(new Frog({x : (Math.random() * -WIDTH) -300, y : randomRange(20, HEIGHT - 30)}));
     }
 
@@ -604,4 +634,4 @@ var gameMap = new Map();
 gameState();
 lostState();
 
-setTimeout(function(){RibbitSmash.switchState('Game')}, 2000);
+setTimeout(function(){RibbitSmash.switchState('Game')}, 500);
