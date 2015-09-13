@@ -75,9 +75,9 @@ var Emitter = function(options) {
     this.y = options.y || 0;
     this.z = options.z || 0;
 
-    this.rate = options.rate || 1;
+    this.rate = options.rate || 2;
     this.duration = options.duration || 70;
-    this.thrustRange = options.thrustRange || {min: 0, max: 2};
+    this.thrustRange = options.thrustRange || {min: 0, max: 6};
     this.angleRange = options.angleRange || {max: 360};
     this.particles = [];
     this.updateOnly = true;
