@@ -331,9 +331,9 @@ function Frog(options) {
     this.shape = true;
 
     this.colId = 0;
-    this.speed = (Math.random() * 0.5) + 0.5;
+    this.speed = (Math.random() * 1.5) + 1.5;
     this.jump = 0;
-    this.jumpSpeed = (Math.random() * 0.08) + 0.04;
+    this.jumpSpeed = (Math.random() * 0.24) + 0.12;
 }
 
 Frog.prototype = new Sprite();
@@ -408,10 +408,10 @@ function Car(options) {
     this.acc = { x : 0, y : 0};
 
     this.angle = 0;
-    this.turnSpeed = 1.5;
-    this.thrust = 0.08;
+    this.turnSpeed = 3;
+    this.thrust = 0.32;
     this.isThrusting = false;
-    this.maxAcc = 3;
+    this.maxAcc = 4.5;
 
     this.colId = 1;
     this.color = {r : 255, g : 255, b : 255, a : 1};
