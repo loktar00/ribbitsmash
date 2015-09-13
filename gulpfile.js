@@ -1,5 +1,6 @@
 var gulp = require('gulp'),
     uglify = require('gulp-uglify'),
+    concat = require('gulp-concat'),
     connect = require('gulp-connect'),
     sourcemaps = require('gulp-sourcemaps'),
     gutil = require('gulp-util'),
@@ -7,6 +8,7 @@ var gulp = require('gulp'),
 
 gulp.task('javascript', function(){
     return gulp.src('./src/**/*.js')
+    .pipe(concat('ribbitsmash.js'))
     .pipe(sourcemaps.init())
         .pipe(uglify().on('error', gutil.log))
     .pipe(sourcemaps.write('./maps'))
