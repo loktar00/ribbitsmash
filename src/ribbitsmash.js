@@ -246,20 +246,33 @@ var GameUI = function(options) {
     this.height = 30;
 
     gameStartTime = Date.now();
+    timeLimit = 60000 + Date.now();
 }
 
 GameUI.prototype = new Sprite();
 
 GameUI.prototype.render = function() {
+    ctx.textAlign = 'start';
+
     ctx.fillStyle = "#000042";
     ctx.fillRect(this.x, this.y, this.width, this.height);
 
     ctx.fillStyle = '#fff';
     ctx.font = '20px monospace';
-    ctx.fillText('Time : ' + (Date.now() - gameStartTime) / 1000, 40, 20);
+
+    if(gameMode === 1) {
+        ctx.fillText('Time : ' + ((Date.now() - gameStartTime) / 1000).toFixed(2), 40, 20);
+        ctx.fillText('Escaped : ' + frogsSaved + '/' + maxSaved , 600, 20);
+    } else if(gameMode === 2) {
+        ctx.fillText('Time Left : ' + Math.abs((Date.now() - timeLimit) / 1000).toFixed(2), 40, 20);
+
+        if(Math.abs((Date.now() - timeLimit) / 1000).toFixed(2) <= 0 ) {
+            RibbitSmash.switchState('Lost');
+            endTime = ((Date.now() - gameStartTime) / 1000);
+        }
+    }
 
     ctx.fillText('Frogs Killed : ' + frogsKilled, 300, 20);
-    ctx.fillText('Escaped : ' + frogsSaved + '/' + maxSaved , 600, 20);
 }
 
 /** FROG SPAWNER **/
@@ -269,8 +282,15 @@ function FrogSpawner() {
     this.live = true;
 
     this.lastUpdate = Date.now();
-    this.spawnFreq = 1000;
+    this.spawnFreq = 1400;
     this.spawnCount = 0;
+
+    if(gameMode === 1) {
+        this.spawnFreq = 1000;
+        this.spawnCount = 0;
+    } else {
+        this.spawnFreq = 30;
+    }
 }
 
 FrogSpawner.prototype.update = function() {
@@ -280,10 +300,13 @@ FrogSpawner.prototype.update = function() {
         this.spawnCount++;
         RibbitSmash.add(new Frog({x : (Math.random() * -WIDTH), y : randomRange(45, HEIGHT - 30)}));
 
-        if(this.spawnCount > 10) {
-            this.spawnFreq -= 100;
-            if(this.spawnFreq < 200) {
-                this.spawnFreq = 200;
+        if(gameMode === 1 || gameMode === 3) {
+            if(this.spawnCount > 12) {
+                this.spawnCount = 0;
+                this.spawnFreq -= 100;
+                if(this.spawnFreq < 200) {
+                    this.spawnFreq = 200;
+                }
             }
         }
     }
@@ -340,9 +363,12 @@ Frog.prototype.update = function(dt) {
     if(this.x > WIDTH) {
         this.live = false;
         frogsSaved++;
-        arcadeAudio.play('escaped');
 
-        if(frogsSaved > maxSaved && gameMode === 1) {
+        if( gameMode === 1) {
+            arcadeAudio.play('escaped');
+        }
+
+        if(frogsSaved >= maxSaved && gameMode === 1) {
             arcadeAudio.play('lose');
             RibbitSmash.switchState('Lost');
         }
@@ -386,7 +412,7 @@ function Car(options) {
 
     this.angle = 0;
     this.turnSpeed = 1.5;
-    this.thrust = 0.05;
+    this.thrust = 0.06;
     this.isThrusting = false;
     this.maxAcc = 3;
 
@@ -408,6 +434,7 @@ Car.prototype.turn = function(dir){
 
 Car.prototype.drawSkids = function() {
     arcadeAudio.play('screech');
+
     this.skidCanvas.ctx.clearRect(0, 0, WIDTH, HEIGHT);
     this.skidCanvas.ctx.save();
         this.skidCanvas.ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
@@ -449,20 +476,25 @@ Car.prototype.update = function() {
     }
 
     this.isThrusting = false;
+    var extraThrust = 0;
 
-    if(RibbitSmash.getKey(87) || RibbitSmash.getKey(38) || RibbitSmash.getKey(83) || RibbitSmash.getKey(40)) {
+    if (RibbitSmash.getKey(32)) {
+        extraThrust = 0.08;
+    }
+
+    if (RibbitSmash.getKey(87) || RibbitSmash.getKey(38) || RibbitSmash.getKey(83) || RibbitSmash.getKey(40)) {
         this.isThrusting = true;
-
+        
         // up
         if(RibbitSmash.getKey(83) || RibbitSmash.getKey(40)) {
-                this.acc.x = Math.cos(radians) * this.thrust;
-                this.acc.y = Math.sin(radians) * this.thrust;
+                this.acc.x = Math.cos(radians) * (this.thrust + extraThrust);
+                this.acc.y = Math.sin(radians) * (this.thrust + extraThrust);
         }
 
         // down
         if(RibbitSmash.getKey(87) || RibbitSmash.getKey(38)) {
-                this.acc.x = Math.cos(radians) * -this.thrust;
-                this.acc.y = Math.sin(radians) * -this.thrust;
+                this.acc.x = Math.cos(radians) * -(this.thrust + extraThrust);
+                this.acc.y = Math.sin(radians) * -(this.thrust + extraThrust);
         }
     }
 
@@ -529,6 +561,7 @@ var Menu = function(options) {
     Sprite.call(this, options);
     this.x = 0;
     this.y = 0;
+    this.bg = 1;
     this.width = WIDTH;
     this.height = HEIGHT;
 
@@ -556,25 +589,56 @@ var Menu = function(options) {
     when = ac.currentTime;
     this.lead.play(when);
     this.bass.play(when);
+
+    gameMode = 3;
+    RibbitSmash.add(new FrogSpawner());
 }
 
 Menu.prototype = new Sprite();
 
 Menu.prototype.update = function() {
-     if(RibbitSmash.getKey(32)) {
+     if(RibbitSmash.getKey(32) || RibbitSmash.getKey(13)) {
         this.lead.stop();
         this.bass.stop();
+        gameMode = 1;
+
+        if(RibbitSmash.getKey(13)) {
+            gameMode = 2;
+        }
+
+        gameStartTime = Date.now();
+        timeLimit = 60000 + Date.now();
+        gameState();
         RibbitSmash.switchState('Game');
      }
 }
 
 Menu.prototype.render = function() {
-    ctx.fillStyle = '#fff';
-    ctx.font = '70px monospace';
-    ctx.fillText('KILL THE FROGS', 100, 100);
+    ctx.fillStyle = 'rgb(100,100,100)';
+    ctx.fillRect(0,0,this.width, this.height);
 
-    ctx.font = '35px monospace';
-    ctx.fillText('Press Space to Begin', 200, 550);
+    var x = WIDTH / 2;
+
+    ctx.textAlign = 'center';
+    drawText('Ribbet Smash', 10, 152, 72, '#000');
+    drawText('Ribbet Smash', 10, 150, 70, '#21de00');
+
+
+    ctx.font = '25px monospace';
+    ctx.fillStyle = '#ffff00';
+    ctx.fillText('Survival HighScore ' + survivalHighScore + ' Seconds', x, 250);
+
+    ctx.fillStyle = '#ff42f7';
+    ctx.fillText('Rampage HighScore ' + rampageHighScore + ' Kills in one Minute', x, 300);
+
+    ctx.font = '30px monospace';
+
+    drawText('Press Space to Play Survival', 5, 122, 482, '#000');
+    drawText('Press Space to Play Survival', 5, 120, 480, '#ffff00');
+
+    drawText('Press Enter to Play Rampage', 5, 132, 532, '#000');
+    drawText('Press Enter to Play Rampage', 5, 130, 530, '#ff42f7');
+
 }
 
 /** Lose Screen **/
@@ -591,19 +655,52 @@ Lose.prototype = new Sprite();
 
 Lose.prototype.update = function() {
      if(RibbitSmash.getKey(32)) {
+        RibbitSmash.keys[32] = false;
         // getting close to the end this is terrible.
-        // recalls the entire state to reinit everything.
-        gameState();
+        menuState();
      }
 }
 
 Lose.prototype.render = function() {
+    ctx.fillStyle = 'rgb(100,100,100)';
+    ctx.fillRect(0,0,this.width, this.height);
+
+    var x = WIDTH / 2;
+
+    ctx.textAlign = 'center';
     ctx.fillStyle = '#fff';
     ctx.font = '70px monospace';
-    ctx.fillText('Too Many Got Away!', 100, 100);
 
-    ctx.font = '35px monospace';
-    ctx.fillText('Press Space to Retry', 200, 550);
+    if(gameMode === 3) {        
+        if(endTime > survivalHighScore) {
+            survivalHighScore = endTime;
+            localStorage.setItem('survivalHighScore', survivalHighScore);
+        }
+        drawText('Too Many Got Away', 8, 115, 72, '#000');
+        drawText('Too Many Got Away', 8, 113, 70, '#21de00');
+
+        ctx.font = '30px monospace';
+        ctx.fillStyle = '#ff42f7';
+
+        ctx.fillText('You stopped ' + frogsKilled + ' in ' + endTime.toFixed(2), x, 250);
+        ctx.fillText('Logest Survival Time ' + survivalHighScore, x, 350);
+    } else {
+         if(frogsKilled > rampageHighScore) {
+            rampageHighScore = frogsKilled;
+            localStorage.setItem('rampageHighScore', rampageHighScore);
+        }
+
+        drawText('Frog Killing Machine', 8, 55, 72, '#000');
+        drawText('Frog Killing Machine', 8, 53, 70, '#21de00');
+
+        ctx.fillStyle = '#ff42f7';
+        ctx.font = '30px monospace';
+        ctx.fillText('You killed ' + frogsKilled + ' in one minute!', x, 250);
+        ctx.fillText('Most Killed in a minute ' + rampageHighScore, x, 350);
+    }
+
+    drawText('Press Space to Return to Menu', 5, 122, 492, '#000');
+    drawText('Press Space to Return to Menu', 5, 120, 490, '#ffff00');
 }
 /** GAME SETUP **/
 
@@ -789,7 +886,14 @@ var gameMap,
     frogsKilled = 0,
     frogsSaved = 0,
     maxSaved = 20,
-    gameStartTime;
+    gameStartTime = Date.now(),
+    endTime = ((Date.now() - gameStartTime) / 1000),
+    timeLimit = 0,
+    survivalHighScore = localStorage.getItem('survivalHighScore'),
+    rampageHighScore = localStorage.getItem('rampageHighScore');
+
+survivalHighScore = survivalHighScore || 0;
+rampageHighScore = rampageHighScore || 0;
 
 gameState();
 lostState();
