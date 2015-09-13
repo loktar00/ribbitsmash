@@ -260,6 +260,12 @@ GameUI.prototype.render = function() {
     if(gameMode === 1) {
         drawText('Time : ' + ((Date.now() - gameStartTime) / 1000).toFixed(2), 3, 40, 8, '#fff');
         drawText('Escaped : ' + frogsSaved + '/' + maxSaved, 3, 600, 8, '#fff');
+
+        if(frogsSaved >= maxSaved && gameMode === 1) {
+            endTime = ((Date.now() - gameStartTime) / 1000).toFixed(2);
+            arcadeAudio.play('lose');
+            RibbitSmash.switchState('Lost');
+        }
     } else if(gameMode === 2) {
         drawText('Time Left : ' + Math.abs((Date.now() - timeLimit) / 1000).toFixed(2), 3, 40, 8, '#fff');
 
@@ -363,11 +369,6 @@ Frog.prototype.update = function(dt) {
         if( gameMode === 1) {
             arcadeAudio.play('escaped');
         }
-
-        if(frogsSaved >= maxSaved && gameMode === 1) {
-            arcadeAudio.play('lose');
-            RibbitSmash.switchState('Lost');
-        }
     }
 }
 
@@ -408,7 +409,7 @@ function Car(options) {
 
     this.angle = 0;
     this.turnSpeed = 1.5;
-    this.thrust = 0.06;
+    this.thrust = 0.08;
     this.isThrusting = false;
     this.maxAcc = 3;
 
@@ -472,25 +473,20 @@ Car.prototype.update = function() {
     }
 
     this.isThrusting = false;
-    var extraThrust = 0;
-
-    if (RibbitSmash.getKey(32)) {
-        extraThrust = 0.08;
-    }
 
     if (RibbitSmash.getKey(87) || RibbitSmash.getKey(38) || RibbitSmash.getKey(83) || RibbitSmash.getKey(40)) {
         this.isThrusting = true;
         
         // up
         if(RibbitSmash.getKey(83) || RibbitSmash.getKey(40)) {
-                this.acc.x = Math.cos(radians) * (this.thrust + extraThrust);
-                this.acc.y = Math.sin(radians) * (this.thrust + extraThrust);
+                this.acc.x = Math.cos(radians) * (this.thrust*0.4);
+                this.acc.y = Math.sin(radians) * (this.thrust*0.4);
         }
 
         // down
         if(RibbitSmash.getKey(87) || RibbitSmash.getKey(38)) {
-                this.acc.x = Math.cos(radians) * -(this.thrust + extraThrust);
-                this.acc.y = Math.sin(radians) * -(this.thrust + extraThrust);
+                this.acc.x = Math.cos(radians) * -((this.thrust));
+                this.acc.y = Math.sin(radians) * -((this.thrust));
         }
     }
 
@@ -670,8 +666,8 @@ Lose.prototype.render = function() {
         drawText('Too Many Got Away', 8, 115, 72, '#000');
         drawText('Too Many Got Away', 8, 113, 70, '#21de00');
 
-        drawText('You stopped ' + frogsKilled + ' in ' + endTime.toFixed(2), 4, 227, 222, '#000');
-        drawText('You stopped ' + frogsKilled + ' in ' + endTime.toFixed(2), 4, 225, 220, '#ff42f7');
+        drawText('You stopped ' + frogsKilled + ' in ' + endTime, 4, 227, 222, '#000');
+        drawText('You stopped ' + frogsKilled + ' in ' + endTime, 4, 225, 220, '#ff42f7');
 
        drawText('Longest Survival Time ' + survivalHighScore, 4, 202, 322, '#000');
        drawText('Longest Survival Time ' + survivalHighScore, 4, 200, 320, '#ff42f7');
