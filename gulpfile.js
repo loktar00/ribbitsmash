@@ -2,7 +2,8 @@ var gulp = require('gulp'),
     uglify = require('gulp-uglify'),
     connect = require('gulp-connect'),
     sourcemaps = require('gulp-sourcemaps'),
-    gutil = require('gulp-util');
+    gutil = require('gulp-util'),
+    zip = require('gulp-zip');
 
 gulp.task('javascript', function(){
     return gulp.src('./src/**/*.js')
@@ -20,6 +21,12 @@ gulp.task('markup', function(){
     .pipe(connect.reload());
 });
 
+gulp.task('zip', ['javascript', 'markup'], function(){
+    return gulp.src('./dist/*.{html,js}')
+        .pipe(zip('distrib.zip'))
+        .pipe(gulp.dest('./entry'));
+});
+
 gulp.task('connect', function(){
     return connect.server({
         root: './dist',
@@ -27,7 +34,7 @@ gulp.task('connect', function(){
     });
 });
 
-gulp.task('watch', ['markup', 'javascript'], function() {
+gulp.task('watch', ['markup', 'javascript', 'zip'], function() {
     gulp.watch(['./src/**/*.js'], ['javascript']);
     gulp.watch(['./src/**/*.html'], ['markup']);
 });
