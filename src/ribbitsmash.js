@@ -257,22 +257,18 @@ GameUI.prototype.render = function() {
     ctx.fillStyle = "#000042";
     ctx.fillRect(this.x, this.y, this.width, this.height);
 
-    ctx.fillStyle = '#fff';
-    ctx.font = '20px monospace';
-
     if(gameMode === 1) {
-        ctx.fillText('Time : ' + ((Date.now() - gameStartTime) / 1000).toFixed(2), 40, 20);
-        ctx.fillText('Escaped : ' + frogsSaved + '/' + maxSaved , 600, 20);
+        drawText('Time : ' + ((Date.now() - gameStartTime) / 1000).toFixed(2), 3, 40, 8, '#fff');
+        drawText('Escaped : ' + frogsSaved + '/' + maxSaved, 3, 600, 8, '#fff');
     } else if(gameMode === 2) {
-        ctx.fillText('Time Left : ' + Math.abs((Date.now() - timeLimit) / 1000).toFixed(2), 40, 20);
+        drawText('Time Left : ' + Math.abs((Date.now() - timeLimit) / 1000).toFixed(2), 3, 40, 8, '#fff');
 
         if(((Date.now() - timeLimit) / 1000).toFixed(2) >= 0 ) {
             RibbitSmash.switchState('Lost');
             endTime = ((Date.now() - gameStartTime) / 1000);
         }
     }
-
-    ctx.fillText('Frogs Killed : ' + frogsKilled, 300, 20);
+    drawText('Frogs Killed : ' + frogsKilled, 3, 300, 8, '#fff');
 }
 
 /** FROG SPAWNER **/
