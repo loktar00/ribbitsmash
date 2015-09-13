@@ -209,11 +209,11 @@ function Map(options) {
 
     // water
     this.ctx.fillStyle  = "#009dd1";
-    this.ctx.fillRect(this.width - 50, 0, 50, this.height);
+    this.ctx.fillRect(this.width - 20, 0, 20, this.height);
 
     // grass
     this.ctx.fillStyle  = "#00d12c";
-    this.ctx.fillRect(this.width - 70, 0, 20, this.height);
+    this.ctx.fillRect(this.width - 70, 0, 50, this.height);
 
     // road lines
     this.ctx.fillStyle = "#d4d4d4";
@@ -234,6 +234,60 @@ Map.prototype.battleDamage = function(img, x, y) {
 Map.prototype.render = function() {
     ctx.drawImage(this.canvas, 0, 0, this.width, this.height);
 };
+
+/** Game UI **/
+var GameUI = function(options) {
+    options = options || {};
+    Sprite.call(this, options);
+    this.x = 0;
+    this.y = 0;
+    this.z = 100;
+    this.width = WIDTH;
+    this.height = 30;
+
+    gameStartTime = Date.now();
+}
+
+GameUI.prototype = new Sprite();
+
+GameUI.prototype.render = function() {
+    ctx.fillStyle = "#000042";
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px monospace';
+    ctx.fillText('Time : ' + (Date.now() - gameStartTime) / 1000, 40, 20);
+
+    ctx.fillText('Frogs Killed : ' + frogsKilled, 300, 20);
+    ctx.fillText('Escaped : ' + frogsSaved + '/' + maxSaved , 600, 20);
+}
+
+/** FROG SPAWNER **/
+
+function FrogSpawner() {
+    this.updateOnly = true;
+    this.live = true;
+
+    this.lastUpdate = Date.now();
+    this.spawnFreq = 1000;
+    this.spawnCount = 0;
+}
+
+FrogSpawner.prototype.update = function() {
+    if (Date.now() > this.lastUpdate + this.spawnFreq) {
+        this.lastUpdate = Date.now();
+
+        this.spawnCount++;
+        RibbitSmash.add(new Frog({x : (Math.random() * -WIDTH), y : randomRange(45, HEIGHT - 30)}));
+
+        if(this.spawnCount > 10) {
+            this.spawnFreq -= 100;
+            if(this.spawnFreq < 200) {
+                this.spawnFreq = 200;
+            }
+        }
+    }
+}
 
 /** FROG **/
 
@@ -284,9 +338,14 @@ Frog.prototype.update = function(dt) {
     }
 
     if(this.x > WIDTH) {
-        arcadeAudio.play('lose');
-        RibbitSmash.switchState('Lost');
-        //this.x = -this.width;
+        this.live = false;
+        frogsSaved++;
+        arcadeAudio.play('escaped');
+
+        if(frogsSaved > maxSaved && gameMode === 1) {
+            arcadeAudio.play('lose');
+            RibbitSmash.switchState('Lost');
+        }
     }
 }
 
@@ -339,6 +398,7 @@ function Car(options) {
 Car.prototype = new Sprite();
 
 Car.prototype.hit = function() {
+    frogsKilled++;
     arcadeAudio.play('damage');
 };
 
@@ -366,8 +426,9 @@ Car.prototype.drawSkids = function() {
 Car.prototype.update = function() {
     var radians = this.angle * Math.PI / 180;
 
-    if(this.y < 0) {
-        this.y = 0;
+    // Magic number. 40 is the height of the upper UI
+    if(this.y < 40) {
+        this.y = 40;
         this.vel.y = -this.vel.y * 0.25;
     }
 
@@ -381,9 +442,9 @@ Car.prototype.update = function() {
         this.vel.x = -this.vel.x * 0.25;
     }
 
-    // magic number.. 50 away from the edge is the water.
-    if(this.x + this.width > WIDTH - 50) {
-        this.x = WIDTH - this.width - 50;
+    // magic number.. 20 away from the edge is the water.
+    if(this.x + this.width > WIDTH - 20) {
+        this.x = WIDTH - this.width - 20;
         this.vel.x = -this.vel.x * 0.25;
     }
 
@@ -475,73 +536,11 @@ var Menu = function(options) {
     var ac = AudioContext ? new AudioContext() : new webkitAudioContext(),
         when = ac.currentTime,
         tempo = 132,
-        lead = [
-            'F#4 e',
-            'G#4 e',
-            'A#4 e',
-            'B4  e',
-            'C#5 e',
-            'D#5 e',
-            'D#5 e',
-            'G#4 e',
-
-            'G#4 e',
-            'A#4 e',
-            'A#4 e',
-            'B4  e',
-            'B4  q',
-            '-   q',
-
-            'G#4 e',
-            'A#4 e',
-            'A#4 e',
-            'B4  e',
-            'B4  e',
-            'F#4 e',
-            'F#4 e',
-            'F#4 e',
-
-            'A#4 e',
-            'F#4 e',
-            'F#4 e',
-            'F#4 e',
-            'A#4 q',
-            '-   q'
-            ],
-        bass = [
-            'A#3 e',
-            'B3  e',
-            'C#2 e',
-            'B#3 e',
-            'G#3 e',
-            'B3  e',
-            'C#2 e',
-            'B3  e',
-
-            'G#3 e',
-            'B3  e',
-            'C#2 e',
-            'B3  e',
-            'G#3 e',
-            'B3  e',
-            'C#2 e',
-            'B3  e',
-
-            'G#3 e',
-            'B3  e',
-            'C#2 e',
-            'B3  e',
-            'G#3 e',
-            'A#3 e',
-            'C#2 e',
-            'A#3  e',
-
-            'F#3 e',
-            'A#3 e',
-            'C#2 e',
-            'A#3 e',
-            'F#3 q',
-            '-   q'
+        lead = ['F#4 e','G#4 e','A#4 e','B4  e','C#5 e','D#5 e','D#5 e','G#4 e','G#4 e', 'A#4 e', 'A#4 e', 'B4  e', 'B4  q', '-   q',
+        'G#4 e', 'A#4 e', 'A#4 e', 'B4  e', 'B4  e', 'F#4 e', 'F#4 e', 'F#4 e','A#4 e','F#4 e','F#4 e','F#4 e','A#4 q','-   q'
+        ],
+        bass = ['A#3 e','B3  e','C#2 e','B#3 e','G#3 e','B3  e','C#2 e','B3  e','G#3 e','B3  e','C#2 e','B3  e','G#3 e','B3  e','C#2 e','B3  e',
+                'G#3 e','B3  e','C#2 e','B3  e','G#3 e','A#3 e','C#2 e','A#3  e','F#3 e','A#3 e','C#2 e','A#3 e','F#3 q','-   q'
         ];
 
     this.lead = new TinyMusic.Sequence(ac, tempo, lead);
@@ -601,10 +600,10 @@ Lose.prototype.update = function() {
 Lose.prototype.render = function() {
     ctx.fillStyle = '#fff';
     ctx.font = '70px monospace';
-    ctx.fillText('One Got Away!', 100, 100);
+    ctx.fillText('Too Many Got Away!', 100, 100);
 
     ctx.font = '35px monospace';
-    ctx.fillText('Press Space to Restart', 200, 550);
+    ctx.fillText('Press Space to Retry', 200, 550);
 }
 /** GAME SETUP **/
 
@@ -771,17 +770,27 @@ function lostState() {
 
 function gameState () {
     RibbitSmash.addState('Game');
+    frogsKilled = 0,
+    frogsSaved = 0,
+    maxSaved = 20;
+    gameStartTime = Date.now();
 
+    gameMap = new Map();
     RibbitSmash.add(gameMap);
-    for(var i = 0; i < 100; i++) {
-        RibbitSmash.add(new Frog({x : (Math.random() * -WIDTH) -300, y : randomRange(20, HEIGHT - 30)}));
-    }
-
+    RibbitSmash.add(new GameUI());
+    RibbitSmash.add(new FrogSpawner());
     RibbitSmash.add(new Car());
 }
 
 // global gamemap.. yay.
-var gameMap = new Map();
+// Getting late.. lets just global all the things!
+var gameMap,
+    gameMode = 1,
+    frogsKilled = 0,
+    frogsSaved = 0,
+    maxSaved = 20,
+    gameStartTime;
+
 gameState();
 lostState();
 menuState();
