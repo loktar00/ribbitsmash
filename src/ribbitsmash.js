@@ -266,7 +266,7 @@ GameUI.prototype.render = function() {
     } else if(gameMode === 2) {
         ctx.fillText('Time Left : ' + Math.abs((Date.now() - timeLimit) / 1000).toFixed(2), 40, 20);
 
-        if(Math.abs((Date.now() - timeLimit) / 1000).toFixed(2) <= 0 ) {
+        if(((Date.now() - timeLimit) / 1000).toFixed(2) >= 0 ) {
             RibbitSmash.switchState('Lost');
             endTime = ((Date.now() - gameStartTime) / 1000);
         }
@@ -617,19 +617,14 @@ Menu.prototype.render = function() {
     ctx.fillStyle = 'rgb(100,100,100)';
     ctx.fillRect(0,0,this.width, this.height);
 
-    var x = WIDTH / 2;
-
-    ctx.textAlign = 'center';
     drawText('Ribbet Smash', 10, 152, 72, '#000');
     drawText('Ribbet Smash', 10, 150, 70, '#21de00');
 
+    drawText('Survival HighScore ' + survivalHighScore + ' Seconds', 3, 224, 253, '#000');
+    drawText('Survival HighScore ' + survivalHighScore + ' Seconds', 3, 222, 250, '#ffff00');
 
-    ctx.font = '25px monospace';
-    ctx.fillStyle = '#ffff00';
-    ctx.fillText('Survival HighScore ' + survivalHighScore + ' Seconds', x, 250);
-
-    ctx.fillStyle = '#ff42f7';
-    ctx.fillText('Rampage HighScore ' + rampageHighScore + ' Kills in one Minute', x, 300);
+    drawText('Rampage HighScore ' + rampageHighScore + ' Kills in one Minute', 3, 154, 302, '#000');
+    drawText('Rampage HighScore ' + rampageHighScore + ' Kills in one Minute', 3, 152, 300, '#ff42f7');
 
     ctx.font = '30px monospace';
 
@@ -671,7 +666,7 @@ Lose.prototype.render = function() {
     ctx.fillStyle = '#fff';
     ctx.font = '70px monospace';
 
-    if(gameMode === 3) {        
+    if(gameMode === 1) {        
         if(endTime > survivalHighScore) {
             survivalHighScore = endTime;
             localStorage.setItem('survivalHighScore', survivalHighScore);
@@ -679,11 +674,11 @@ Lose.prototype.render = function() {
         drawText('Too Many Got Away', 8, 115, 72, '#000');
         drawText('Too Many Got Away', 8, 113, 70, '#21de00');
 
-        ctx.font = '30px monospace';
-        ctx.fillStyle = '#ff42f7';
+        drawText('You stopped ' + frogsKilled + ' in ' + endTime.toFixed(2), 4, 227, 222, '#000');
+        drawText('You stopped ' + frogsKilled + ' in ' + endTime.toFixed(2), 4, 225, 220, '#ff42f7');
 
-        ctx.fillText('You stopped ' + frogsKilled + ' in ' + endTime.toFixed(2), x, 250);
-        ctx.fillText('Logest Survival Time ' + survivalHighScore, x, 350);
+       drawText('Longest Survival Time ' + survivalHighScore, 4, 202, 322, '#000');
+       drawText('Longest Survival Time ' + survivalHighScore, 4, 200, 320, '#ff42f7');
     } else {
          if(frogsKilled > rampageHighScore) {
             rampageHighScore = frogsKilled;
@@ -693,10 +688,11 @@ Lose.prototype.render = function() {
         drawText('Frog Killing Machine', 8, 55, 72, '#000');
         drawText('Frog Killing Machine', 8, 53, 70, '#21de00');
 
-        ctx.fillStyle = '#ff42f7';
-        ctx.font = '30px monospace';
-        ctx.fillText('You killed ' + frogsKilled + ' in one minute!', x, 250);
-        ctx.fillText('Most Killed in a minute ' + rampageHighScore, x, 350);
+        drawText('You killed ' + frogsKilled + ' in one minute!', 4, 187, 222, '#000');
+        drawText('You killed ' + frogsKilled + ' in one minute!', 4, 185, 220, '#ff42f7');
+
+        drawText('Most Killed in a minute ' + rampageHighScore, 4, 172, 322, '#000');
+        drawText('Most Killed in a minute ' + rampageHighScore, 4, 170, 320, '#ff42f7');
     }
 
     drawText('Press Space to Return to Menu', 5, 122, 492, '#000');
